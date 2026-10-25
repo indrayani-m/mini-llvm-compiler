@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiniLang Compiler</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2e3149;
+    --accent: #7c6af7;
+    --accent2: #56cfb2;
+    --text: #e2e4f0;
+    --muted: #6b7094;
+    --error: #ff5f72;
+    --success: #56cfb2;
+    --token-kw: #c792ea;
+    --token-num: #f78c6c;
+    --token-op: #89ddff;
+    --token-id: #82aaff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  header h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: .5px;
+    color: var(--accent);
+  }
+
+  header span {
+    font-size: .8rem;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 2px 10px;
+    border-radius: 99px;
+  }
+
+  .toolbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .examples-label {
+    font-size: .8rem;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+
+  .example-btn {
+    font-size: .78rem;
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+
+  .example-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .run-btn {
+    margin-left: auto;
+    padding: 7px 22px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: opacity .15s;
+  }
+
+  .run-btn:hover { opacity: .88; }
+  .run-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .printf-toggle {
+    font-size: .8rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+  }
+
+  .printf-toggle input { accent-color: var(--accent); }
+
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .pane {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pane:last-child { border-right: none; }
+
+  .pane-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pane-header .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .pane-header .dot.green { background: var(--success); }
+  .pane-header .dot.red   { background: var(--error); }
+
+  .pane-body {
+    flex: 1;
+    overflow: auto;
+    padding: 14px 16px;
+  }
+
+  /* ---- editor ---- */
+  #editor {
+    width: 100%;
+    height: 100%;
+    min-height: 200px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: .88rem;
+    line-height: 1.6;
+    resize: none;
+    tab-size: 4;
+    padding: 14px 14px 14px 0;
+  }
+
+  /* ---- tabs (for right panes) ---- */
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+  }
+
+  .tab {
+    padding: 8px 16px;
+    font-size: .78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+
+  .tab:hover { color: var(--text); }
+
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ---- output pane (bottom half) ---- */
+  .output-area {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 2px solid var(--border);
+    max-height: 220px;
+  }
+
+  /* ---- pre blocks ---- */
+  pre {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: .82rem;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--text);
+  }
+
+  .error-text { color: var(--error); }
+
+  /* ---- token list ---- */
+  .token-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: .82rem;
+  }
+
+  .token-table tr:hover { background: rgba(255,255,255,.04); }
+
+  .token-table td {
+    padding: 3px 16px 3px 0;
+    white-space: nowrap;
+    vertical-align: top;
+  }
+
+  .token-table td:nth-child(1) { color: var(--muted); min-width: 60px; }
+  .token-table td:nth-child(2) { min-width: 90px; font-weight: 600; }
+  .token-table td:nth-child(3) { color: var(--text); }
+
+  .tok-kw   { color: var(--token-kw); }
+  .tok-num  { color: var(--token-num); }
+  .tok-op   { color: var(--token-op); }
+  .tok-id   { color: var(--token-id); }
+  .tok-eof  { color: var(--muted); }
+
+  /* ---- placeholder ---- */
+  .placeholder {
+    color: var(--muted);
+    font-size: .85rem;
+    font-style: italic;
+    padding: 8px 0;
+  }
+
+  /* ---- spinner ---- */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- scrollbar ---- */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ---- line numbers for editor (visual guide) ---- */
+  .editor-wrap {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .line-nums {
+    padding: 14px 8px 14px 14px;
+    text-align: right;
+    color: var(--muted);
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: .88rem;
+    line-height: 1.6;
+    user-select: none;
+    min-width: 38px;
+    overflow: hidden;
+    white-space: pre;
+    flex-shrink: 0;
+  }
+
+  .output-num {
+    color: var(--success);
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    line-height: 2;
+  }
+
+  @media (max-width: 760px) {
+    .main { grid-template-columns: 1fr; }
+    .output-area { grid-template-columns: 1fr; max-height: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ MiniLang</h1>
+  <span>Compiler Explorer</span>
+</header>
+
+<div class="toolbar">
+  <span class="examples-label">Load example:</span>
+  <div id="example-btns"></div>
+  <button class="run-btn" id="run-btn" onclick="compile()">
+    <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor">
+      <polygon points="2,1 11,6 2,11"/>
+    </svg>
+    Compile &amp; Run
+  </button>
+</div>
+
+<div class="main">
+
+  <!-- Left top: source editor -->
+  <div class="pane">
+    <div class="pane-header"><span class="dot"></span> Source (.mini)</div>
+    <div class="editor-wrap">
+      <div class="line-nums" id="line-nums">1</div>
+      <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+        <textarea id="editor" spellcheck="false"
+          placeholder="// Type MiniLang code here, or load an example above
+int x = 10;
+int y = x * 2 + 1;
+print(y);"
+          oninput="updateLineNums(this)" onscroll="syncScroll(this)"
+        ></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right top: tokens / AST / IR tabs -->
+  <div class="pane" style="border-right:none">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('tokens',this)">Tokens</div>
+      <div class="tab" onclick="switchTab('ast',this)">Syntax Tree</div>
+      <div class="tab" onclick="switchTab('ir',this)">LLVM IR</div>
+    </div>
+    <div class="pane-body" id="right-body">
+      <div class="tab-content active" id="tab-tokens">
+        <p class="placeholder">Press "Compile &amp; Run" to see the token list.</p>
+      </div>
+      <div class="tab-content" id="tab-ast">
+        <p class="placeholder">Press "Compile &amp; Run" to see the syntax tree.</p>
+      </div>
+      <div class="tab-content" id="tab-ir">
+        <p class="placeholder">Press "Compile &amp; Run" to see the generated LLVM IR.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom: output / errors -->
+  <div class="output-area">
+    <div class="pane" style="max-height:220px">
+      <div class="pane-header"><span class="dot green" id="out-dot"></span> Program Output</div>
+      <div class="pane-body" id="output-pane">
+        <p class="placeholder">Output will appear here after compilation.</p>
+      </div>
+    </div>
+    <div class="pane" style="max-height:220px;border-right:none">
+      <div class="pane-header"><span class="dot" id="err-dot" style="background:var(--muted)"></span> Errors</div>
+      <div class="pane-body" id="error-pane">
+        <p class="placeholder">No errors.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ---- state ----
+let examples = [];
+let activeTab = 'tokens';
+
+// ---- boot: load examples ----
+fetch('/examples')
+  .then(r => r.json())
+  .then(data => {
+    examples = data;
+    const wrap = document.getElementById('example-btns');
+    data.forEach(ex => {
+      const btn = document.createElement('button');
+      btn.className = 'example-btn';
+      btn.textContent = ex.name.replace('.mini','');
+      btn.onclick = () => loadExample(ex);
+      wrap.appendChild(btn);
+    });
+  });
+
+function loadExample(ex) {
+  const editor = document.getElementById('editor');
+  editor.value = ex.source;
+  updateLineNums(editor);
+  // clear all output panels, wait for user to press Compile & Run
+  document.getElementById('tab-tokens').innerHTML = '<p class="placeholder">Press "Compile &amp; Run" to see the token list.</p>';
+  document.getElementById('tab-ast').innerHTML = '<p class="placeholder">Press "Compile &amp; Run" to see the syntax tree.</p>';
+  document.getElementById('tab-ir').innerHTML = '<p class="placeholder">Press "Compile &amp; Run" to see the generated LLVM IR.</p>';
+  document.getElementById('output-pane').innerHTML = '<p class="placeholder">Output will appear here after compilation.</p>';
+  document.getElementById('error-pane').innerHTML = '<p class="placeholder">No errors.</p>';
+  document.getElementById('out-dot').style.background = 'var(--success)';
+  document.getElementById('err-dot').style.background = 'var(--muted)';
+}
+
+// ---- line numbers ----
+function updateLineNums(el) {
+  const editor = el || document.getElementById('editor');
+  const lines = editor.value.split('\n').length;
+  const nums = document.getElementById('line-nums');
+  nums.textContent = Array.from({length: lines}, (_, i) => i + 1).join('\n');
+  nums.scrollTop = editor.scrollTop;
+}
+
+function syncScroll(el) {
+  document.getElementById('line-nums').scrollTop = el.scrollTop;
+}
+
+// ---- tabs ----
+function switchTab(name, el) {
+  activeTab = name;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ---- compile ----
+async function compile() {
+  const source = document.getElementById('editor').value.trim();
+  if (!source) return;
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Running…';
+
+  const use_printf = false;
+
+  let result;
+  try {
+    const resp = await fetch('/compile', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ source, filename: 'program.mini', use_printf })
+    });
+    result = await resp.json();
+  } catch(e) {
+    result = { error: 'Could not reach the server: ' + e.message };
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 11,6 2,11"/></svg> Compile &amp; Run';
+
+  // ---- tokens ----
+  const tokEl = document.getElementById('tab-tokens');
+  if (result.tokens) {
+    const KEYWORDS = new Set(['int','print','if','else','while']);
+    const OPS = new Set(['+','-','*','/','<','>','<=','>=','==','!=','=','(',')','{','}',';']);
+    const header = `<tr style="border-bottom:1px solid var(--border)">
+      <th style="text-align:left;padding:2px 16px 6px 0;color:var(--muted);font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px">Pos</th>
+      <th style="text-align:left;padding:2px 16px 6px 0;color:var(--muted);font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px">Type</th>
+      <th style="text-align:left;padding:2px 0 6px 0;color:var(--muted);font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.6px">Value</th>
+    </tr>`;
+    const rows = result.tokens.map(t => {
+      let cls = 'tok-op';
+      if (KEYWORDS.has(t.type)) cls = 'tok-kw';
+      else if (t.type === 'NUMBER') cls = 'tok-num';
+      else if (t.type === 'IDENT') cls = 'tok-id';
+      else if (t.type === 'EOF') cls = 'tok-eof';
+      const label = t.type === 'IDENT' ? 'IDENTIFIER' : t.type;
+      return `<tr>
+        <td>${t.line}:${t.col}</td>
+        <td class="${cls}">${esc(label)}</td>
+        <td style="color:var(--text)">${esc(t.value)}</td>
+      </tr>`;
+    }).join('');
+    tokEl.innerHTML = `<table class="token-table"><thead>${header}</thead><tbody>${rows}</tbody></table>`;
+  } else {
+    tokEl.innerHTML = '<p class="placeholder error-text">—</p>';
+  }
+
+  // ---- AST ----
+  const astEl = document.getElementById('tab-ast');
+  if (result.ast) {
+    astEl.innerHTML = `<pre>${esc(result.ast)}</pre>`;
+  } else {
+    astEl.innerHTML = '<p class="placeholder">—</p>';
+  }
+
+  // ---- IR ----
+  const irEl = document.getElementById('tab-ir');
+  if (result.ir) {
+    irEl.innerHTML = `<pre>${colorizeIR(result.ir)}</pre>`;
+  } else {
+    irEl.innerHTML = '<p class="placeholder">—</p>';
+  }
+
+  // ---- output ----
+  const outEl = document.getElementById('output-pane');
+  const outDot = document.getElementById('out-dot');
+  const rawOutput = (result.output || '').trim();
+  if (rawOutput) {
+    const nums = rawOutput.split(/\s+/).filter(Boolean);
+    outEl.innerHTML = `<div class="output-num">${nums.join('  ')}</div>`;
+    outDot.style.background = 'var(--success)';
+    outEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else {
+    outEl.innerHTML = '<p class="placeholder">No output.</p>';
+    outDot.style.background = 'var(--muted)';
+  }
+
+  // ---- errors ----
+  const errEl = document.getElementById('error-pane');
+  const errDot = document.getElementById('err-dot');
+  if (result.error) {
+    errEl.innerHTML = `<pre class="error-text">${esc(result.error)}</pre>`;
+    errDot.style.background = 'var(--error)';
+  } else {
+    errEl.innerHTML = '<p class="placeholder">No errors. ✓</p>';
+    errDot.style.background = 'var(--success)';
+  }
+}
+
+// ---- keyboard shortcut: Ctrl+Enter to compile ----
+document.getElementById('editor').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    compile();
+  }
+  // Tab key inserts spaces
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const el = e.target;
+    const s = el.selectionStart;
+    el.value = el.value.slice(0, s) + '    ' + el.value.slice(el.selectionEnd);
+    el.selectionStart = el.selectionEnd = s + 4;
+    updateLineNums();
+  }
+});
+
+// ---- helpers ----
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+function colorizeIR(ir) {
+  return esc(ir)
+    // keywords
+    .replace(/\b(define|declare|ret|br|label|alloca|load|store|call|add|sub|mul|sdiv|udiv|urem|icmp|zext|sext|trunc|i32|i64|i1|i8|ptr|void)\b/g,
+             '<span style="color:var(--token-kw)">$1</span>')
+    // labels (e.g. entry:)
+    .replace(/^([a-zA-Z][\w.]*:)$/gm,
+             '<span style="color:var(--accent2);font-weight:bold">$1</span>')
+    // temps (%t1, %var.x)
+    .replace(/(%[\w.]+)/g,
+             '<span style="color:var(--token-id)">$1</span>')
+    // @ names
+    .replace(/(@[\w.]+)/g,
+             '<span style="color:var(--accent)">$1</span>')
+    // numbers
+    .replace(/\b(\d+)\b/g,
+             '<span style="color:var(--token-num)">$1</span>');
+}
+
+// init line numbers
+updateLineNums(document.getElementById('editor'));
+</script>
+</body>
+</html>

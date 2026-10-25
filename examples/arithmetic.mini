@@ -1,0 +1,13 @@
+// Arithmetic and operator precedence
+int a = 10;
+int b = 3;
+
+print(a + b);          // 13
+print(a - b);          // 7
+print(a * b);          // 30
+print(a / b);          // 3   (integer division)
+print(2 + 3 * 4);      // 14  (* binds tighter than +)
+print((2 + 3) * 4);    // 20
+print(-a + 5);         // -5  (unary minus)
+print(a - b - 2);      // 5   (left to right)
+print(100 / 10 / 5);   // 2

@@ -1,0 +1,17 @@
+// Prime numbers below 30 (nested loops).
+// MiniLang has no % operator, so n % d is written as n - (n / d) * d.
+int n = 2;
+while (n < 30) {
+    int is_prime = 1;
+    int d = 2;
+    while (d * d <= n) {
+        if (n - (n / d) * d == 0) {
+            is_prime = 0;
+        }
+        d = d + 1;
+    }
+    if (is_prime == 1) {
+        print(n);
+    }
+    n = n + 1;
+}

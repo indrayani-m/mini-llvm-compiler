@@ -1,0 +1,33 @@
+// if / else, else-if chains, nesting and comparisons
+int age = 20;
+if (age > 17) {
+    print(1);       // 1
+} else {
+    print(0);
+}
+
+int a = 7;
+int b = 7;
+if (a == b) { print(100); }     // 100
+if (a != b) { print(200); }     // (not printed)
+
+int score = 72;
+if (score > 89) {
+    print(4);
+} else if (score > 79) {
+    print(3);
+} else if (score > 69) {
+    print(2);                   // 2
+} else {
+    print(1);
+}
+
+if (a < 10) {
+    if (b > 5) { print(555); } else { print(666); }   // 555
+}
+
+// A comparison is also a value: 1 for true, 0 for false
+int flag = a == b;
+print(flag);        // 1
+flag = a < b;
+print(flag);        // 0

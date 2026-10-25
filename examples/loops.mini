@@ -1,0 +1,26 @@
+// while loops
+
+// Sum of 1..10
+int i = 1;
+int sum = 0;
+while (i <= 10) {
+    sum = sum + i;
+    i = i + 1;
+}
+print(sum);         // 55
+
+// Factorial of 5
+int n = 5;
+int fact = 1;
+while (n > 1) {
+    fact = fact * n;
+    n = n - 1;
+}
+print(fact);        // 120
+
+// Countdown
+int c = 3;
+while (c > 0) {
+    print(c);       // 3, 2, 1
+    c = c - 1;
+}

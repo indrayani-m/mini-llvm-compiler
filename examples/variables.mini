@@ -1,0 +1,21 @@
+// Declarations, default values and assignment
+int x = 5;
+int y;              // no initializer: starts at 0
+print(y);           // 0
+
+y = x * 2;
+print(y);           // 10
+
+x = x + y;
+print(x);           // 15
+
+int z = x - y * 2;
+print(z);           // -5
+
+// Block scopes: an inner variable may shadow an outer one
+int s = 1;
+{
+    int s = 2;
+    print(s);       // 2
+}
+print(s);           // 1
